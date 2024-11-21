@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import nodejs from 'nodejs-mobile-react-native';
 import type {PropsWithChildren} from 'react';
 import {
   SafeAreaView,
@@ -15,6 +16,7 @@ import {
   Text,
   useColorScheme,
   View,
+  Button,
 } from 'react-native';
 
 import {
@@ -56,16 +58,40 @@ function Section({children, title}: SectionProps): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const [nodeStatus, setNodeStatus] = React.useState('Initializing...');
+
+  React.useEffect(() => {
+    try {
+      setNodeStatus('Starting Node.js...');
+      nodejs.start('main.js');
+      setNodeStatus('Node.js running');
+      
+      nodejs.channel.addListener('message', (msg) => {
+        console.log('[Node Message]:', msg);
+      });
+
+      // Test the channel immediately
+      nodejs.channel.send('Init test message');
+      console.log('Test message sent to Node.js');
+
+      return () => {
+        console.log('Cleaning up Node.js listeners');
+        nodejs.channel.removeAllListeners('message');
+      };
+    } catch (error) {
+      setNodeStatus('Node.js failed to start');
+      console.error('Error initializing Node.js:', error);
+    }
+  }, []);
 
   const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    backgroundColor: useColorScheme() === 'dark' ? Colors.darker : Colors.lighter,
   };
 
   return (
     <SafeAreaView style={backgroundStyle}>
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        barStyle={useColorScheme() === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <ScrollView
@@ -74,12 +100,15 @@ function App(): React.JSX.Element {
         <Header />
         <View
           style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
+            backgroundColor: useColorScheme() === 'dark' ? Colors.black : Colors.white,
           }}>
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
           </Section>
+          <Button title="Message Node"
+  onPress={() => nodejs.channel.send('A message!')}
+  />
           <Section title="See Your Changes">
             <ReloadInstructions />
           </Section>
@@ -90,11 +119,13 @@ function App(): React.JSX.Element {
             Read the docs to discover what to do next:
           </Section>
           <LearnMoreLinks />
+          <Text style={styles.sectionDescription}>Node.js Status: {nodeStatus}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   sectionContainer: {
